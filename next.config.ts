@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Adding allowed origins for browser preview
+  allowedDevOrigins: ['127.0.0.1'],
 };
 
 export default nextConfig;

@@ -347,9 +347,9 @@ export default function ChatPage() {
 
   const handleSendMessage = async (messageText: string = inputMessage, actionType: ActionType = 'processMessage', notes?: string) => {
     const currentMessageText = messageText.trim();
-    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision' || actionType === 'analyzeRequirements' || actionType === 'generateEngagementPack' || actionType === 'generateBrief';
+    const canSendMessage = currentMessageText || currentAttachedFilesData.length > 0 || actionType === 'generateDelivery' || actionType === 'generateRevision' || actionType === 'analyzeRequirements' || actionType === 'generateEngagementPack' || actionType === 'generateBrief' || actionType === 'designIdea' || actionType === 'designPrompt';
 
-    if (!canSendMessage && (actionType !== 'generateDelivery' && actionType !== 'generateRevision')) return;
+    if (!canSendMessage && (actionType !== 'generateDelivery' && actionType !== 'generateRevision' && actionType !== 'designIdea' && actionType !== 'designPrompt')) return;
 
     if (!profile) {
       toast({ title: "Profile not loaded", description: "Please wait for your profile to load or set it up in Settings.", variant: "destructive" });
@@ -446,6 +446,85 @@ export default function ChatPage() {
         aiResponseContent.push({ type: 'text', title: 'Project Summary', text: briefOutput.projectSummary });
         aiResponseContent.push({ type: 'text', title: 'Key Objectives', text: briefOutput.keyObjectives });
         // ... add other fields as needed
+      } else if (actionType === 'designIdea') {
+        // For Design Idea button
+        try {
+          // Show message that system is searching the web for sample designs
+          aiResponseContent.push({ type: 'text', title: 'Searching For Design Samples', text: 'Browsing the web for similar designs based on your input...' });
+          
+          // Web search section
+          const searchResults = await fetch('/api/search?q=' + encodeURIComponent('graphic design examples for ' + currentMessageText), { method: 'GET' })
+            .then(res => res.json())
+            .catch(err => { console.error('Error searching web:', err); return { items: [] }; });
+          
+          const webLinks = searchResults?.items?.slice(0, 5).map((item: any) => `[${item.title}](${item.link})`) || [];
+          if (webLinks.length > 0) {
+            aiResponseContent.push({ type: 'list', title: 'Similar Design Examples', items: webLinks });
+          }
+          
+          // Generate creative design ideas
+          const designIdeasResponse = await fetch('/api/generate-design-ideas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: currentMessageText,
+              userProfile: profile,
+              modelId: modelIdToUse
+            })
+          }).then(res => res.json()).catch(err => { console.error('Error generating design ideas:', err); return null; });
+          
+          if (designIdeasResponse) {
+            // Add creative design ideas
+            aiResponseContent.push({ type: 'text', title: 'Creative Design Ideas', text: designIdeasResponse.creativeDesignIdeas });
+            
+            // Add typography design ideas
+            aiResponseContent.push({ type: 'text', title: 'Typography Design Ideas', text: designIdeasResponse.typographyIdeas });
+          } else {
+            // Fallback if API call fails
+            aiResponseContent.push({ type: 'text', title: 'Creative Design Ideas', text: 'Based on your input "' + currentMessageText + '", here are 5 creative design ideas:\n\n1. [Design idea with detailed description]\n2. [Design idea with detailed description]\n3. [Design idea with detailed description]\n4. [Design idea with detailed description]\n5. [Design idea with detailed description]' });
+            aiResponseContent.push({ type: 'text', title: 'Typography Design Ideas', text: 'Here are 2 typography-focused design ideas:\n\n1. [Typography design idea with detailed description]\n2. [Typography design idea with detailed description]' });
+          }
+        } catch (error) {
+          console.error('Error in designIdea flow:', error);
+          aiResponseContent.push({ type: 'text', title: 'Error', text: 'An error occurred while generating design ideas. Please try again.' });
+        }
+      } else if (actionType === 'designPrompt') {
+        // For Design Prompt button
+        try {
+          // Generate AI image prompts based on design ideas
+          const designPromptsResponse = await fetch('/api/generate-design-prompts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: currentMessageText,
+              userProfile: profile,
+              modelId: modelIdToUse
+            })
+          }).then(res => res.json()).catch(err => { console.error('Error generating design prompts:', err); return null; });
+          
+          if (designPromptsResponse) {
+            // Add design prompts
+            aiResponseContent.push({ type: 'text', title: 'Design Prompts for AI Generation', text: 'Here are detailed prompts for AI image generation based on your design requirements:' });
+            
+            // Add creative design prompts
+            designPromptsResponse.creativeDesignPrompts.forEach((prompt: string, index: number) => {
+              aiResponseContent.push({ type: 'code', title: `Design Prompt ${index + 1}`, code: prompt });
+            });
+            
+            // Add typography design prompts
+            designPromptsResponse.typographyPrompts.forEach((prompt: string, index: number) => {
+              aiResponseContent.push({ type: 'code', title: `Typography Prompt ${index + 1}`, code: prompt });
+            });
+          } else {
+            // Fallback if API call fails
+            aiResponseContent.push({ type: 'text', title: 'Design Prompts for AI Generation', text: 'Here are detailed prompts for AI image generation based on your design requirements:' });
+            aiResponseContent.push({ type: 'code', title: 'Design Prompt 1', code: 'Detailed, professional looking [description based on input], vector design, solid [color] background, high contrast, minimalist style, clean lines, commercial quality, high resolution' });
+            aiResponseContent.push({ type: 'code', title: 'Design Prompt 2', code: 'Vintage style [description based on input], distressed texture, solid [color] background, retro typography, halftone shadows, printing design, vector art, high resolution' });
+          }
+        } catch (error) {
+          console.error('Error in designPrompt flow:', error);
+          aiResponseContent.push({ type: 'text', title: 'Error', text: 'An error occurred while generating design prompts. Please try again.' });
+        }
       } else if (actionType === 'generateDelivery' || actionType === 'generateRevision') {
         const platformInput: GeneratePlatformMessagesInput = {
           name: profile.name,

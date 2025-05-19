@@ -1,4 +1,8 @@
 {
     "IDX.aI.enableInlineCompletion": true,
-    "IDX.aI.enableCodebaseIndexing": true
+    "IDX.aI.enableCodebaseIndexing": true,
+    "amp.commands.allowlist": [
+        "git remote add origin https://github.com/BMajnu/DesAInR.git",
+        "git add ."
+    ]
 }
